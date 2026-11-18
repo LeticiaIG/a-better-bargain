@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Data Center Public Sentiment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  /* layout: one 780px column. Summary chart first, then five theme tabs and a lens switch driving a single panel. */
+  --bg:#f2f5f8; --surface:#ffffff; --wash:#e8edf2; --line:#d6dde5;
+  --ink:#14202b; --ink-2:#465564; --ink-3:#6f7c89;
+  --complaint:#c24e1c; --wish:#0c8562; --now:#1d5fc0; --measured:#6748c2;
+  --display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
+  --body:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0f151c; --surface:#18212b; --wash:#212c38; --line:#2c3947;
+    --ink:#e9eef3; --ink-2:#aab6c2; --ink-3:#8492a0;
+    --complaint:#f08a58; --wish:#44c79e; --now:#73abf5; --measured:#aa98f0;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0f151c; --surface:#18212b; --wash:#212c38; --line:#2c3947;
+  --ink:#e9eef3; --ink-2:#aab6c2; --ink-3:#8492a0;
+  --complaint:#f08a58; --wish:#44c79e; --now:#73abf5; --measured:#aa98f0;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.55}
+.page{max-width:780px;margin:0 auto;padding:40px 20px 56px;display:flex;flex-direction:column;gap:32px}
+h1,h2,h3{font-family:var(--display);text-wrap:balance;margin:0}
+h1{font-size:clamp(28px,5vw,40px);font-weight:700;line-height:1.1;letter-spacing:-0.01em}
+h2{font-size:20px;font-weight:700;line-height:1.25}
+.kicker{font-size:13px;font-weight:600;color:var(--ink-3);letter-spacing:0.04em;text-transform:uppercase;margin:0 0 10px}
+.lede{font-size:18px;color:var(--ink-2);margin:12px 0 0;max-width:62ch}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:20px}
+.chart-title{font-size:15px;font-weight:600;margin:0 0 2px}
+.chart-sub{font-size:13px;color:var(--ink-3);margin:0 0 8px}
+#trend{width:100%}
+#trend svg{display:block;max-width:100%}
+.g-line{stroke:var(--line);stroke-width:1}
+.g-text{fill:var(--ink-3);font-family:var(--body);font-size:12px}
+.t-area{fill:var(--complaint);opacity:0.12}
+.t-line{fill:none;stroke:var(--complaint);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.t-dot{fill:var(--complaint);stroke:var(--surface);stroke-width:2}
+.t-val{fill:var(--ink);font-family:var(--body);font-size:14px;font-weight:600;font-variant-numeric:tabular-nums}
+.controls{display:flex;flex-direction:column;gap:16px}
+.ctl-label{font-size:13px;font-weight:600;color:var(--ink-3);margin:0 0 8px}
+.row{display:flex;flex-wrap:wrap;gap:8px}
+button{font:inherit;color:inherit;cursor:pointer}
+.tab{background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:9px 14px;font-size:15px;font-weight:500;color:var(--ink-2)}
+.tab:hover{border-color:var(--ink-3)}
+.tab[aria-pressed="true"]{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+.lens{background:transparent;border:1px solid var(--line);border-radius:999px;padding:7px 14px 7px 10px;font-size:14px;font-weight:500;color:var(--ink-2);display:inline-flex;align-items:center;gap:8px}
+.lens:hover{border-color:var(--ink-3)}
+.lens .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
+.lens .n{color:var(--ink-3);font-variant-numeric:tabular-nums}
+.lens[aria-pressed="true"]{background:var(--surface);border-color:var(--c);color:var(--ink);box-shadow:inset 0 0 0 1px var(--c)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--now);outline-offset:2px}
+.panel-head{display:flex;flex-direction:column;gap:4px;margin:0 0 20px;padding:0 0 16px;border-bottom:1px solid var(--line)}
+.panel-head p{margin:0;color:var(--ink-2);font-size:15px;max-width:62ch}
+.lens-line{font-size:13px;font-weight:600;color:var(--c);margin:0 0 14px;display:flex;align-items:center;gap:8px}
+.lens-line .sw{width:10px;height:10px;border-radius:3px;background:var(--c)}
+ul{list-style:none;margin:0;padding:0}
+.bars{display:flex;flex-direction:column;gap:18px}
+.bar-head{display:flex;justify-content:space-between;align-items:baseline;gap:16px}
+.bar-label{font-size:15px;font-weight:500}
+.bar-val{font-family:var(--display);font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;white-space:nowrap}
+.track{height:10px;background:var(--wash);border-radius:5px;margin:6px 0 4px;overflow:hidden}
+.track span{display:block;height:100%;background:var(--c);border-radius:5px}
+.src{font-size:13px;color:var(--ink-3);text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.src:hover{color:var(--ink);text-decoration-color:var(--ink-3)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px}
+.tile{background:var(--wash);border-radius:8px;padding:16px;border-top:3px solid var(--c);display:flex;flex-direction:column;gap:6px}
+.tile-val{font-family:var(--display);font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile-label{font-size:15px}
+.reading{margin:16px 0 0;font-size:15px;color:var(--ink-2);max-width:62ch}
+.links{margin:24px 0 0;padding:16px 0 0;border-top:1px solid var(--line)}
+.links ul{display:flex;flex-direction:column;gap:10px}
+.links li{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.link-btn{background:transparent;border:1px solid var(--line);border-radius:8px;padding:6px 12px;font-size:14px;font-weight:500}
+.link-btn:hover{border-color:var(--ink-3)}
+.links span{font-size:14px;color:var(--ink-2)}
+.notes h2{margin:0 0 10px}
+.notes ul{display:flex;flex-direction:column;gap:8px;list-style:disc;padding-left:20px}
+.notes li{font-size:15px;color:var(--ink-2);max-width:66ch}
+.stamp{font-size:13px;color:var(--ink-3);margin:0}
+@media (max-width:480px){.page{padding:28px 16px 40px;gap:26px}.card{padding:16px}.tab{flex:1 1 auto;text-align:center}}
+</style>
+</head>
+<body>
+<main class="page">
+  <header>
+    <p class="kicker">US public opinion, 2025 to 2026</p>
+    <h1>How communities feel about data centers</h1>
+    <p class="lede">Opposition to a data center near home has nearly doubled in a year. Much of it comes with conditions: the same polls show what people say would change their minds.</p>
+  </header>
+
+  <section class="card" aria-labelledby="trend-title">
+    <p class="chart-title" id="trend-title">Would oppose a new data center near where they live</p>
+    <p class="chart-sub">US registered voters. <a class="src" href="https://the-decoder.com/data-center-opposition-surged-from-42-to-75-percent-in-just-one-year-survey-finds/">Heatmap Pro and Embold Research, same question asked four times</a></p>
+    <div id="trend"></div>
+  </section>
+
+  <section class="controls" aria-label="Choose what to look at">
+    <div>
+      <p class="ctl-label" id="theme-label">Pick a theme</p>
+      <div class="row" id="themes" role="group" aria-labelledby="theme-label"></div>
+    </div>
+    <div>
+      <p class="ctl-label" id="lens-label">Look at it as</p>
+      <div class="row" id="lenses" role="group" aria-labelledby="lens-label"></div>
+    </div>
+  </section>
+
+  <section class="card" id="panel" aria-live="polite"></section>
+
+  <section class="notes">
+    <h2>How to read this</h2>
+    <ul>
+      <li>Nearly all published polling on this topic is from the United States. Each survey uses its own wording and sample, so the figures show a pattern and are not comparable point for point.</li>
+      <li>Pew, Gallup, and AP-NORC are nonpartisan pollsters. Several of the polls about conditions were commissioned by groups with a position, including Rewiring America, Third Way, the Rainey Center, and America Is All In.</li>
+      <li>On electricity, EPRI is a research institute funded by the power sector, and the PJM figure comes from that market's independent monitor.</li>
+      <li>Every figure links to where it was reported. Where the original survey was not directly available, the link goes to the coverage that quoted it.</li>
+    </ul>
+  </section>
+
+  <p class="stamp">Compiled 18 November 2026 from published survey results and project trackers.</p>
+</main>
+
+<script>
+(function(){
+  var S={
+    pew:['Pew Research Center, Jul to Aug 2026','https://www.helpnetsecurity.com/2026/09/24/americans-views-on-data-centers/'],
+    gallup:['Gallup, Mar 2026','https://news.gallup.com/poll/709772/americans-oppose-data-centers-area.aspx?version=print'],
+    heatMay:['Heatmap Pro, May 2026','https://heatmap.news/energy/data-centers-electricity-prices-blame'],
+    heatAug:['Heatmap Pro, Aug 2026','https://the-decoder.com/data-center-opposition-surged-from-42-to-75-percent-in-just-one-year-survey-finds/'],
+    heatStrong:['Heatmap Pro, Aug 2026','https://nationofchange.org/2026/08/21/three-quarters-of-americans-would-oppose-a-data-center-near-their-home-new-polling-finds'],
+    heatBans:['Heatmap Pro, Aug 2026','https://techradar.com/pro/69-of-americans-oppose-local-ai-data-centers-in-2026-poll-trump-blasts-blocking-communities-on-truth-social-for-choosing-poverty-over-server-farms-throwing-off-tremendous-amounts-of-money'],
+    change:['Change Research, Dec 2025','https://changeresearch.com/opposition-to-data-centers-has-grown-sharply-since-2025/'],
+    thirdway:['Third Way, 2026','https://www.thirdway.org/memo/do-americans-believe-banning-data-centers-will-lower-electricity-prices'],
+    ari:['ARI national poll, Jul 2026','https://ari.us/wp-content/uploads/2026/07/26.07.22-Data-Center-National-Polling.pdf'],
+    cj:['Carolina Journal Poll, 2026','https://www.wsoctv.com/news/local/poll-nc-voters-want-data-centers-generate-their-own-power/4WGAOJSTNVEWFHFXF4TGBUE65Q/'],
+    rewiring:['Rewiring America, Jun 2026','https://www.rewiringamerica.org/newsroom/press-releases/voters-oppose-data-centers-but-support-homegrown-energy'],
+    semafor:['Bipartisan poll reported by Semafor, Oct 2026','https://www.semafor.com/article/10/15/2026/americans-open-to-data-centers-with-guardrails-poll-finds'],
+    embold:['Embold Research, May 2026','https://techstrong.it/featured/survey-data-center-opposition-is-rising-quickly/'],
+    zencity:['Zencity, May 2026','https://www.route-fifty.com/artificial-intelligence/2026/05/water-electricity-remain-major-data-center-concerns-survey-says/413631/'],
+    apnorc:['AP-NORC, Jul 2026','https://www.ajc.com/news/2026/09/americans-are-increasingly-concerned-about-the-environmental-impact-of-ai-new-poll-finds/'],
+    gsg:['Global Strategy Group for America Is All In, May 2026','https://www.americaisallin.com/sites/default/files/2026-07/AIAI%20Data%20Center%20Survey%20Memo%20FINAL.pdf'],
+    rainey:['Rainey Center, 2026','https://www.raineycenter.org/polling/data-centers-voters-are-persuadable-but-they-want-accountability-and-clean-energy'],
+    itif:['ITIF and Public First, Sep 2026','https://www.route-fifty.com/artificial-intelligence/2026/09/data-centers-are-americans-least-favored-development-poll-finds/415751/'],
+    carbon:['Carbon Direct, Jan 2024 to May 2026','https://www.route-fifty.com/artificial-intelligence/2026/07/community-opposition-helped-block-170b-data-center-projects-report-finds/415143/'],
+    dcw1:['Data Center Watch, Q1 2026','https://techstrong.it/featured/community-resistance-slows-130-billion-in-data-center-development/'],
+    dcw2:['Data Center Watch, Q2 2026','https://www.networkworld.com/article/4224586/communities-are-blocking-data-centers-before-theyre-even-proposed.html'],
+    dcc:['Data Center Coalition, reported by Pluribus News','https://pluribusnews.com/?p=47493'],
+    efe:['EFE, Sep 2026','https://rtvc.es/la-expansion-de-los-centros-de-datos-pone-a-prueba-los-recursos-hidricos-de-espana-12-septiembre-2026/'],
+    pjm:['Monitoring Analytics, PJM market monitor, Jul 2026','https://jerseyvindicator.org/2026/07/20/the-vindicator-explains-data-centers-added-billions-to-the-cost-of-keeping-new-jerseys-electric-grid-reliable/'],
+    epri:['EPRI, Jun 2026','https://www.publicpower.org/node/30525'],
+    mit:['MIT analysis, reported Nov 2026','https://www.inquirer.com/business/technology/data-center-electricity-prices-20261106.html'],
+    lbnl:['Lawrence Berkeley National Laboratory','https://www.utilitydive.com/news/residential-electricity-prices-data-centers-lbnl/803217/']
+  };
+  var LENS={
+    q:{n:'Complaints',c:'var(--complaint)',d:'What people object to',bars:true},
+    d:{n:'Wishes',c:'var(--wish)',d:'What people say would win them over',bars:true},
+    a:{n:'Right now',c:'var(--now)',d:'What is happening on the ground',bars:false},
+    m:{n:'Measured',c:'var(--measured)',d:'What studies have found so far',bars:false}
+  };
+  var T=[
+    {id:'electricity',n:'Electricity bills',
+     b:'The most widespread complaint, and the entry point to opposition.',
+     q:[[88,'Concerned about energy prices','change'],[70,'Worried data centers will raise their utility bills','thirdway'],[50,'Say data centers hurt home energy costs, up from 38% in January','pew']],
+     d:[[78,'Make companies pay for the grid upgrades they need','ari'],[78,'Require data centers to generate their own power (North Carolina voters)','cj'],[74,'Require them to offset their use with rooftop solar and weatherization for local homes','rewiring'],[54,'Would support construction if companies cover electricity costs and protect local resources','semafor'],[40,'More likely to support a facility that produces its own power','embold','About 40%']],
+     a:[['No. 1','Data centers are now the most-blamed cause of rising electricity prices','heatMay'],['28% to 50%+','Voters who blame them a lot for electricity prices, in nine months','heatMay']],
+     m:[['38%','Share of the latest PJM capacity auction cost attributed to data centers, $6.3 billion of $16.4 billion','pjm'],['About -4%','Change in residential rates for each doubling of data center capacity, 2015 to 2024','epri'],['+2.1%','Rise in average residential prices attributed to data centers, 2010 to 2024','mit'],['31 states','Saw inflation-adjusted electricity prices fall from 2019 to 2024','lbnl']],
+     mr:'Costs have reached household bills where demand outran capacity, as in the 13-state PJM grid. National studies of past years find small or even negative effects, and they predate most of the AI build-out.',
+     l:[[4,'Who pays for the grid is decided by regulators'],[1,'On-site clean power answers both complaints']]},
+    {id:'water',n:'Water and environment',
+     b:'Turns a national debate into a local one, because the resource belongs to the town.',
+     q:[[86,'Say the effect on local water supply matters to their support','zencity'],[80,'Concerned about water, land, and other local resources','change'],[54,'Say data centers are bad for the environment, up from 39% in January','pew'],[53,'Extremely or very concerned about the environmental impact of AI, up from 41% in 2025','apnorc'],[50,'Of those opposed, cite the use of resources such as water and power','gallup']],
+     d:[[43,'Would support them if developers reimburse water and electricity, while 41% would still be opposed','thirdway'],[39,'Net support when powered by new wind and solar instead of fossil fuels','gsg','+39 net']],
+     a:[['4%','See a mostly positive effect on the environment, energy costs, or local quality of life','pew'],['Spain','Finalizing a royal decree with energy and environmental requirements for data centers','efe']],
+     l:[[2,'Water is a neighborhood resource, not a national one'],[0,'Power and water appear together in almost every poll']]},
+    {id:'neighborhood',n:'Life in the neighborhood',
+     b:'Where concern becomes active opposition: noise, land, and landscape.',
+     q:[[75,'Would oppose one near where they live, 61% strongly','heatStrong'],[71,'Oppose one in their area, more than oppose a nuclear plant (53%)','gallup'],[60,'Uncomfortable with one nearby','pew'],[49,'Say they harm quality of life for nearby residents, up from 30% in January','pew'],[49,'Would rather leave nearby land undeveloped','itif']],
+     d:[[48,'Put local concerns about power and water first, even if more get built overseas (28% disagree)','rainey']],
+     a:[['42% to 75%','Local opposition in one year','heatAug'],['4%','Strongly support one nearby, down from 13% a year earlier','heatStrong']],
+     l:[[3,'Neighbors ask what they get in return'],[4,'Without a say in the process, opposition hardens']]},
+    {id:'jobs',n:'Jobs and local benefit',
+     b:'The only counterweight, and nearly the only reason supporters give.',
+     q:[[24,'Say they are bad for local jobs, up from 15% in January','pew'],[21,'Say they are bad for local tax revenue, up from 12% in January','pew']],
+     d:[[66,'Require community benefits agreements before construction begins','rainey'],[39,'Rank good-paying local jobs among the top reasons to support one','gsg'],[28,'Net shift in opinion after hearing about concrete community benefits','rainey','+28 net']],
+     a:[['27%','Favor one in their area, most of them because of jobs','gallup'],['5.5M','Jobs the industry says it supports nationally','dcc']],
+     l:[[2,'The benefit either offsets the nuisance or it does not'],[4,'Promises only persuade when they are binding']]},
+    {id:'transparency',n:'Transparency and control',
+     b:'Ties the rest together: almost every wish is a condition someone has to be able to verify.',
+     q:[[42,'Say costs outweigh benefits and communities should limit construction (29% say the opposite)','ari']],
+     d:[[74,'Require large data centers to disclose how much electricity they use','ari'],[60,'Limit the number of new data centers that can be built','apnorc','About 60%']],
+     a:[['$170B','46 projects delayed or cancelled after community opposition','carbon'],['75','Projects blocked or delayed in the first quarter of 2026 alone','dcw1'],['843','Opposition groups identified across the US','dcw2'],['530+','Counties and municipalities that have restricted or banned construction','heatBans']],
+     l:[[0,'Paying for the grid is the most repeated demand'],[1,'Publish water and power use'],[3,'Sign agreements before construction']]}
+  ];
+
+  var st={t:0,k:'q'};
+  function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+  function src(key){var s=S[key];return '<a class="src" href="'+esc(s[1])+'">'+esc(s[0])+'</a>';}
+
+  function renderControls(){
+    var th=document.getElementById('themes'),h='';
+    T.forEach(function(t,i){h+='<button class="tab" type="button" data-t="'+i+'" aria-pressed="'+(i===st.t)+'">'+esc(t.n)+'</button>';});
+    th.innerHTML=h;
+    var ln=document.getElementById('lenses');h='';
+    Object.keys(LENS).forEach(function(k){
+      var items=T[st.t][k];if(!items)return;
+      h+='<button class="lens" type="button" data-k="'+k+'" style="--c:'+LENS[k].c+'" aria-pressed="'+(k===st.k)+'"><span class="sw"></span>'+LENS[k].n+' <span class="n">'+items.length+'</span></button>';
+    });
+    ln.innerHTML=h;
+  }
+
+  function renderPanel(){
+    var t=T[st.t],L=LENS[st.k],items=t[st.k],h='';
+    h+='<div class="panel-head"><h2>'+esc(t.n)+'</h2><p>'+esc(t.b)+'</p></div>';
+    h+='<p class="lens-line" style="--c:'+L.c+'"><span class="sw"></span>'+L.n+': '+L.d.charAt(0).toLowerCase()+L.d.slice(1)+'</p>';
+    if(L.bars){
+      h+='<ul class="bars" style="--c:'+L.c+'">';
+      items.forEach(function(it){
+        var v=Math.max(0,Math.min(100,Math.round(it[0])));
+        h+='<li><div class="bar-head"><span class="bar-label">'+esc(it[1])+'</span><span class="bar-val">'+esc(it[3]||(v+'%'))+'</span></div><div class="track"><span style="width:'+v+'%"></span></div>'+src(it[2])+'</li>';
+      });
+      h+='</ul>';
+    }else{
+      h+='<ul class="tiles" style="--c:'+L.c+'">';
+      items.forEach(function(it){
+        h+='<li class="tile"><div class="tile-val">'+esc(it[0])+'</div><div class="tile-label">'+esc(it[1])+'</div>'+src(it[2])+'</li>';
+      });
+      h+='</ul>';
+      if(st.k==='m'&&t.mr){h+='<p class="reading">'+esc(t.mr)+'</p>';}
+    }
+    h+='<div class="links"><p class="ctl-label">Connects to</p><ul>';
+    t.l.forEach(function(l){h+='<li><button class="link-btn" type="button" data-t="'+l[0]+'">'+esc(T[l[0]].n)+'</button><span>'+esc(l[1])+'</span></li>';});
+    h+='</ul></div>';
+    document.getElementById('panel').innerHTML=h;
+  }
+
+  function render(){
+    if(!T[st.t][st.k]){st.k='q';}
+    renderControls();renderPanel();
+  }
+  function setTheme(i,fromHash){
+    st.t=i;render();
+    if(!fromHash){try{location.hash=T[i].id;}catch(e){}}
+  }
+  document.addEventListener('click',function(e){
+    var b=e.target.closest('button');if(!b)return;
+    if(b.hasAttribute('data-t')){setTheme(parseInt(b.getAttribute('data-t'),10));}
+    else if(b.hasAttribute('data-k')){st.k=b.getAttribute('data-k');render();}
+  });
+  function fromHash(){
+    var id='';try{id=(location.hash||'').replace('#','');}catch(e){}
+    for(var i=0;i<T.length;i++){if(T[i].id===id){if(i!==st.t){setTheme(i,true);}return;}}
+  }
+  window.addEventListener('hashchange',fromHash);
+
+  function trend(){
+    var el=document.getElementById('trend');
+    var w=Math.max(280,Math.round(el.clientWidth||640)),h=210,pl=40,pr=28,pt=28,pb=30;
+    var pts=[[0,42,'Aug 2025'],[6,51,'Feb 2026'],[9,70,'May 2026'],[12,75,'Aug 2026']];
+    function x(m){return Math.round(pl+(w-pl-pr)*m/12);}
+    function y(v){return Math.round(pt+(h-pt-pb)*(1-v/100));}
+    var s='<svg viewBox="0 0 '+w+' '+h+'" width="'+w+'" height="'+h+'" role="img" aria-label="Opposition rose from 42% in August 2025 to 51% in February 2026, 70% in May 2026, and 75% in August 2026.">';
+    [0,25,50,75,100].forEach(function(g){
+      s+='<line class="g-line" x1="'+pl+'" x2="'+(w-pr)+'" y1="'+y(g)+'" y2="'+y(g)+'"/>';
+      s+='<text class="g-text" x="'+(pl-8)+'" y="'+(y(g)+4)+'" text-anchor="end">'+g+'%</text>';
+    });
+    var line=pts.map(function(p,i){return (i?'L':'M')+x(p[0])+' '+y(p[1]);}).join(' ');
+    s+='<path class="t-area" d="'+line+' L'+x(12)+' '+y(0)+' L'+x(0)+' '+y(0)+' Z"/>';
+    s+='<path class="t-line" d="'+line+'"/>';
+    pts.forEach(function(p,i){
+      var anchor=i===0?'start':(i===pts.length-1?'end':'middle');
+      s+='<circle class="t-dot" cx="'+x(p[0])+'" cy="'+y(p[1])+'" r="5"/>';
+      s+='<text class="t-val" x="'+x(p[0])+'" y="'+(y(p[1])-12)+'" text-anchor="'+anchor+'">'+p[1]+'%</text>';
+      s+='<text class="g-text" x="'+x(p[0])+'" y="'+(h-8)+'" text-anchor="'+anchor+'">'+p[2]+'</text>';
+    });
+    el.innerHTML=s+'</svg>';
+  }
+
+  render();fromHash();trend();
+  var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(trend,120);});
+})();
+</script>
+</body>
+</html>
